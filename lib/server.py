@@ -235,13 +235,13 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
             sys.stderr.write("%s - %s\n" % (self.address_string(), format % args))
 
 
-def _watchdog(idle_timeout_s: int):
+def _watchdog(idle_timeout_s: int, watch_parent: bool):
     """Daemon thread: terminate the server when (a) the parent process dies,
     or (b) no client has hit us for idle_timeout_s. Polls every 5s. Uses
     os._exit because srv.shutdown() can hang on the per-request thread join
     that ThreadingTCPServer.server_close() does by default — and for a dev
     server graceful close has no upside."""
-    watch_parent = (INITIAL_PPID != 1)
+    watch_parent = watch_parent and (INITIAL_PPID != 1)
     while True:
         time.sleep(5)
         reason = None
@@ -261,6 +261,10 @@ def main():
     ap.add_argument("--port", type=int, default=5050)
     ap.add_argument("--idle-timeout", type=int, default=600,
                     help="exit if no client requests for this many seconds (0 = disable). Default 600 (10 min).")
+    ap.add_argument("--no-parent-watch", action="store_true",
+                    help="don't exit when the launching process exits. Used by scripts/start_server.py "
+                         "for agents (e.g. Codex) whose shell commands return before the server should stop; "
+                         "the idle timeout still applies.")
     args = ap.parse_args()
 
     artifact_dir = Path(args.artifact_dir).resolve()
@@ -300,19 +304,22 @@ def main():
 
     # Auto-shutdown so servers don't accumulate across Claude Code sessions.
     threading.Thread(
-        target=_watchdog, args=(args.idle_timeout,), daemon=True
+        target=_watchdog, args=(args.idle_timeout, not args.no_parent_watch), daemon=True
     ).start()
 
+    parent_rule = "" if args.no_parent_watch else "parent-death OR "
     with srv:
         print(f"[server] serving {artifact_dir}")
-        print(f"[server] open http://localhost:{args.port}/sample.html")
+        print(f"[server] open http://localhost:{args.port}/")
         print(f"[server] inbox:   {inbox}")
         print(f"[server] history: {history}")
         print(f"[server] info:    http://localhost:{args.port}/info")
         if args.idle_timeout > 0:
-            print(f"[server] auto-shutdown: parent-death OR {args.idle_timeout}s idle (no requests). --idle-timeout 0 to disable")
-        else:
+            print(f"[server] auto-shutdown: {parent_rule}{args.idle_timeout}s idle (no requests). --idle-timeout 0 to disable")
+        elif parent_rule:
             print(f"[server] auto-shutdown: parent-death only (idle timeout disabled)")
+        else:
+            print(f"[server] auto-shutdown: disabled (stop it with: lsof -ti:{args.port} | xargs kill)")
         print(f"[server] Ctrl-C to stop")
         try:
             srv.serve_forever()

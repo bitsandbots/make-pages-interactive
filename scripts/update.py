@@ -18,6 +18,17 @@ REPO_URL = "https://github.com/paraschopra/make-pages-interactive"
 def main() -> int:
     git_dir = SKILL_DIR / ".git"
     if not git_dir.exists():
+        parent_repo = subprocess.run(
+            ["git", "-C", str(SKILL_DIR), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True,
+        )
+        if parent_repo.returncode == 0:
+            top = parent_repo.stdout.strip()
+            prefix = SKILL_DIR.relative_to(top) if SKILL_DIR.is_relative_to(top) else SKILL_DIR.name
+            print(f"This skill is vendored inside another git repo ({top}), not its own clone.")
+            print("Update it from that repo, e.g. if it was added as a git subtree:")
+            print(f"  cd {top} && git subtree pull --prefix={prefix} {REPO_URL}.git main")
+            return 1
         print("ERROR: skill is not a git checkout — cannot auto-update.")
         print(f"  Expected: {git_dir}")
         print()

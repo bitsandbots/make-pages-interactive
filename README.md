@@ -1,6 +1,6 @@
 # make-pages-interactive
 
-A Claude Code skill that turns any folder of static HTML pages into a **live commenting surface**. Highlight text, click an element, leave a note — the comment lands in a local inbox that Claude reads and responds to by editing the page. The page auto-reloads with a walkthrough of what changed.
+A Claude Code / Codex skill that turns any folder of static HTML pages into a **live commenting surface**. Highlight text, click an element, leave a note — the comment lands in a local inbox that Claude reads and responds to by editing the page. The page auto-reloads with a walkthrough of what changed.
 
 Originally built for iterating on research artifacts (long HTML reports with plots, tables, explanations) but works for any folder of HTML: docs, design mocks, generated reports, prototype UIs.
 
@@ -59,6 +59,8 @@ git clone https://github.com/paraschopra/make-pages-interactive \
 ```
 
 That's it. Claude Code auto-discovers any folder under `~/.claude/skills/` that contains a `SKILL.md`.
+
+**Codex:** clone into `~/.codex/skills/make-pages-interactive` instead (or symlink one clone into both). Codex has no file-watch tool, so the skill runs in *wait mode*: it starts the server detached (`scripts/start_server.py`) and blocks on `scripts/wait_for_feedback.py`, handling each batch as it arrives. Keep the Codex session open while you comment; if it stops waiting, say "check feedback".
 
 Updates are explicit:
 
